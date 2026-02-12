@@ -1,167 +1,203 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import CardStylePreview from './components/CardStylePreview';
+
+type CardStyle = {
+  id: string;
+  name: string;
+  description: string;
+  preview: string;
+  gradient: string;
+};
+
+const cardStyles: CardStyle[] = [
+  {
+    id: 'interactive-face',
+    name: 'Interactive Face',
+    description: 'A playful card with a face that gets sadder when you hover over "No"',
+    preview: '😊',
+    gradient: 'from-pink-100 via-red-100 to-rose-200',
+  },
+  // Add more styles here in the future
+];
 
 export default function Home() {
-  const [sadnessLevel, setSadnessLevel] = useState(0);
-  const [noButtonPosition, setNoButtonPosition] = useState<{ x: number; y: number } | null>(null);
-  const [accepted, setAccepted] = useState(false);
-  const noButtonRef = useRef<HTMLButtonElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const [requestorName, setRequestorName] = useState('');
+  const [recipientName, setRecipientName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [selectedStyle, setSelectedStyle] = useState<string>('interactive-face');
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-  const moveNoButton = (e?: React.TouchEvent | React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
+  const validateForm = () => {
+    const newErrors: { [key: string]: string } = {};
+
+    if (!requestorName.trim()) {
+      newErrors.requestorName = 'Your name is required';
     }
-    if (!containerRef.current || !noButtonRef.current) return;
-    
-    const container = containerRef.current.getBoundingClientRect();
-    const button = noButtonRef.current.getBoundingClientRect();
-    
-    // Calculate random position within viewport bounds
-    const padding = 20;
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    
-    const maxX = viewportWidth - button.width - padding;
-    const maxY = viewportHeight - button.height - padding;
-    
-    const randomX = Math.max(padding, Math.random() * maxX);
-    const randomY = Math.max(padding, Math.random() * maxY);
-    
-    setNoButtonPosition({ x: randomX, y: randomY });
-    setSadnessLevel(prev => Math.min(prev + 1, 5)); // Max sadness level of 5
+
+    if (!recipientName.trim()) {
+      newErrors.recipientName = "Recipient's name is required";
+    }
+
+    if (!phoneNumber.trim()) {
+      newErrors.phoneNumber = 'Phone number is required for SMS notifications';
+    } else if (!phoneNumber.match(/^\+?[1-9]\d{1,14}$/)) {
+      newErrors.phoneNumber = 'Please enter a valid phone number (e.g., +1234567890)';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const handleYesClick = () => {
-    setAccepted(true);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    // Build URL with query parameters
+    const params = new URLSearchParams({
+      style: selectedStyle,
+      requestor: requestorName.trim(),
+      recipient: recipientName.trim(),
+      phone: phoneNumber.trim(),
+    });
+
+    // Navigate to card page
+    router.push(`/card?${params.toString()}`);
   };
-
-  // Face expressions based on sadness level
-  const getFaceExpression = () => {
-    const expressions = [
-      { eyes: '😊', mouth: 'happy' },
-      { eyes: '😐', mouth: 'neutral' },
-      { eyes: '😔', mouth: 'sad' },
-      { eyes: '😢', mouth: 'sadder' },
-      { eyes: '😭', mouth: 'saddest' },
-      { eyes: '💔', mouth: 'broken' },
-    ];
-    return expressions[Math.min(sadnessLevel, 5)];
-  };
-
-  const expression = getFaceExpression();
-
-  if (accepted) {
-    return (
-      <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-pink-100 via-red-100 to-rose-200 overflow-hidden">
-        {/* Fireworks */}
-        <div className="pointer-events-none absolute inset-0">
-          <div className="firework firework-1" />
-          <div className="firework firework-2" />
-          <div className="firework firework-3" />
-          <div className="firework firework-4" />
-          <div className="firework firework-5" />
-        </div>
-
-        {/* Floating hearts on success */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          {[...Array(25)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute text-pink-400 opacity-60 animate-float"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 3}s`,
-                animationDuration: `${3 + Math.random() * 2}s`,
-              }}
-            >
-              💖
-            </div>
-          ))}
-        </div>
-
-        <div className="text-center animate-bounce relative z-10">
-          <div className="text-8xl mb-4">💕</div>
-          <h1 className="text-5xl font-bold text-pink-600 mb-4">Yay! 💖</h1>
-          <p className="text-2xl text-pink-700">You made me so happy!</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div 
-      ref={containerRef}
-      className="flex min-h-screen items-center justify-center bg-gradient-to-br from-pink-100 via-red-100 to-rose-200 relative overflow-hidden"
-    >
-      <div className="text-center z-10 relative">
-        {/* Face Avatar */}
-        <div className="mb-8">
-          <div className="w-48 h-48 mx-auto bg-white rounded-full shadow-2xl flex items-center justify-center border-4 border-pink-300 relative overflow-hidden">
-            {/* Face */}
-            <div className="text-8xl transition-all duration-300">
-              {expression.eyes}
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-red-100 to-rose-200 flex items-center justify-center p-4">
+      <div className="max-w-2xl w-full bg-white rounded-2xl shadow-2xl p-8 md:p-12">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl md:text-5xl font-bold text-pink-600 mb-2">
+            💝 Create Your Valentine's Card
+          </h1>
+          <p className="text-lg text-pink-500">
+            Send a special message to someone special
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Requestor Name */}
+          <div>
+            <label htmlFor="requestorName" className="block text-sm font-medium text-gray-700 mb-2">
+              Your Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              id="requestorName"
+              value={requestorName}
+              onChange={(e) => setRequestorName(e.target.value)}
+              className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 ${
+                errors.requestorName ? 'border-red-500' : 'border-pink-200'
+              }`}
+              placeholder="Enter your name"
+            />
+            {errors.requestorName && (
+              <p className="mt-1 text-sm text-red-500">{errors.requestorName}</p>
+            )}
+          </div>
+
+          {/* Recipient Name */}
+          <div>
+            <label htmlFor="recipientName" className="block text-sm font-medium text-gray-700 mb-2">
+              Recipient's Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              id="recipientName"
+              value={recipientName}
+              onChange={(e) => setRecipientName(e.target.value)}
+              className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 ${
+                errors.recipientName ? 'border-red-500' : 'border-pink-200'
+              }`}
+              placeholder="Enter recipient's name"
+            />
+            {errors.recipientName && (
+              <p className="mt-1 text-sm text-red-500">{errors.recipientName}</p>
+            )}
+          </div>
+
+          {/* Phone Number */}
+          <div>
+            <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-2">
+              Your Phone Number <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="tel"
+              id="phoneNumber"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 ${
+                errors.phoneNumber ? 'border-red-500' : 'border-pink-200'
+              }`}
+              placeholder="+1234567890"
+            />
+            <p className="mt-1 text-sm text-gray-500">
+              We'll send you an SMS when they say yes! 💖
+            </p>
+            {errors.phoneNumber && (
+              <p className="mt-1 text-sm text-red-500">{errors.phoneNumber}</p>
+            )}
+          </div>
+
+          {/* Card Style Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-4">
+              Choose Card Style <span className="text-red-500">*</span>
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {cardStyles.map((style) => (
+                <div
+                  key={style.id}
+                  onClick={() => setSelectedStyle(style.id)}
+                  className={`relative border-2 rounded-xl cursor-pointer transition-all overflow-hidden ${
+                    selectedStyle === style.id
+                      ? 'border-pink-500 shadow-lg ring-2 ring-pink-200'
+                      : 'border-pink-200 hover:border-pink-300 hover:shadow-md'
+                  }`}
+                >
+                  {/* Preview Snapshot - Square */}
+                  <div className="aspect-square relative">
+                    <CardStylePreview styleId={style.id} gradient={style.gradient} />
+                    
+                    {/* Overlay with selection indicator */}
+                    {selectedStyle === style.id && (
+                      <div className="absolute top-2 right-2 w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center shadow-lg">
+                        <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Style Info */}
+                  <div className="p-4 bg-white">
+                    <h3 className="font-semibold text-lg text-gray-800 mb-1">{style.name}</h3>
+                    <p className="text-sm text-gray-600">{style.description}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
 
-        {/* Question */}
-        <h1 className="text-4xl md:text-5xl font-bold text-pink-700 mb-4">
-          Will you be my Valentine? 💝
-        </h1>
-        
-        <p className="text-xl text-pink-600 mb-8">
-          {sadnessLevel === 0 && "Please say yes! 😊"}
-          {sadnessLevel === 1 && "Are you sure? 😐"}
-          {sadnessLevel === 2 && "I'm getting sad... 😔"}
-          {sadnessLevel === 3 && "Please reconsider... 😢"}
-          {sadnessLevel === 4 && "My heart is breaking... 😭"}
-          {sadnessLevel >= 5 && "You've broken my heart... 💔"}
-        </p>
-
-        {/* Buttons */}
-        <div className="flex gap-4 justify-center items-center flex-wrap relative min-h-[60px]">
+          {/* Submit Button */}
           <button
-            onClick={handleYesClick}
-            className="px-8 py-4 bg-pink-500 hover:bg-pink-600 text-white text-xl font-bold rounded-full shadow-lg transform transition-all duration-200 hover:scale-110 active:scale-95 z-10"
+            type="submit"
+            className="w-full py-4 bg-pink-500 hover:bg-pink-600 text-white text-xl font-bold rounded-lg shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95"
           >
-            Yes! 💖
+            Create My Card 💕
           </button>
-          
-          <button
-            ref={noButtonRef}
-            onMouseEnter={moveNoButton}
-            onTouchStart={moveNoButton}
-            style={{
-              position: noButtonPosition ? 'fixed' : 'relative',
-              left: noButtonPosition ? `${noButtonPosition.x}px` : 'auto',
-              top: noButtonPosition ? `${noButtonPosition.y}px` : 'auto',
-              transition: 'all 0.2s ease-out',
-            }}
-            className="px-8 py-4 bg-gray-400 hover:bg-gray-500 text-white text-xl font-bold rounded-full shadow-lg transform transition-all duration-200 hover:scale-110 active:scale-95 z-20"
-          >
-            No 😢
-          </button>
-        </div>
+        </form>
 
-        {/* Floating hearts */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {[...Array(20)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute text-pink-300 opacity-30 animate-float"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 3}s`,
-                animationDuration: `${3 + Math.random() * 2}s`,
-              }}
-            >
-              💕
-            </div>
-          ))}
+        <div className="mt-6 text-center text-sm text-gray-500">
+          <p>After creating your card, share the link with your special someone!</p>
         </div>
       </div>
     </div>
